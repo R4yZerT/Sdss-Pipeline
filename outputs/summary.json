@@ -1,0 +1,38 @@
+{
+  "timestamp": "2026-04-17T15:02:07.519793",
+  "results": {
+    "classification": {
+      "accuracy": 0.9933,
+      "confusion_matrix": [
+        [
+          105,
+          0,
+          0
+        ],
+        [
+          2,
+          88,
+          0
+        ],
+        [
+          0,
+          0,
+          105
+        ]
+      ],
+      "classes": [
+        "Galaxy",
+        "QSO",
+        "Star"
+      ]
+    },
+    "regression": {
+      "MSE": 0.298484,
+      "R2": 0.5153
+    },
+    "clustering": {
+      "inertia": 544.72,
+      "n_clusters": 3
+    }
+  }
+}
