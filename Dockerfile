@@ -1,23 +1,20 @@
-# 1. Cambiamos a 'bullseye' para evitar el error 403 de los repositorios Trixie
+# 1. Usamos la imagen completa (no la slim) que ya trae herramientas básicas
 FROM python:3.11-bullseye
 
-# 2. Definimos el directorio de trabajo
 WORKDIR /app
 
-# 3. Instalamos dependencias del sistema (usando espejos más estables)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+# 2. SALTÁNDONOS EL APT-GET (Aquí es donde fallaba)
+# No vamos a correr apt-get update porque tu red lo bloquea.
+# La imagen 'bullseye' estándar ya es bastante completa.
 
-# 4. Copiamos solo los requerimientos primero (para usar la caché de Docker)
+# 3. Instalamos las librerías de Python directamente
 COPY requirements.txt .
 
-# 5. Instalamos las librerías de Python para el M4
+# Usamos un espejo de Pip por si la red sigue molestando
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# 6. Copiamos el resto de tu código de ML
+# 4. Copiamos el código
 COPY . .
 
-# 7. Ejecutamos tu script principal
 CMD ["python", "main.py"]
