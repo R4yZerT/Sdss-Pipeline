@@ -1,5 +1,13 @@
 pipeline {
-    agent any
+    /* Utilizamos un agente de Docker para asegurar que el entorno 
+       tenga Python 3.11 instalado, independientemente de la configuración del host.
+    */
+    agent {
+        docker { 
+            image 'python:3.11-slim' 
+            args  '-u root' // Asegura permisos para crear carpetas y escribir logs
+        }
+    }
 
     environment {
         IMAGE_NAME = "sdss-ml-pipeline"
@@ -8,22 +16,19 @@ pipeline {
     }
 
     stages {
-
-        // ── 1. Checkout ────────────────────────────────────────────────────
+        // ── 1. CHECKOUT ─────────────────────────────────────────────
         stage('Checkout') {
             steps {
-                echo '==> Clonando repositorio...'
+                echo '==> Sincronizando código fuente...'
                 checkout scm
             }
         }
 
-        // ── 2. Instalación de dependencias ─────────────────────────────────
+        // ── 2. INSTALACIÓN ──────────────────────────────────────────
         stage('Instalar dependencias') {
             steps {
-                echo '==> Instalando dependencias Python...'
+                echo '==> Instalando librerías de Ciencia de Datos...'
                 sh '''
-                    python3 -m venv .venv
-                    . .venv/bin/activate
                     pip install --upgrade pip
                     pip install -r requirements.txt
                     pip install pytest
@@ -31,59 +36,43 @@ pipeline {
             }
         }
 
-        // ── 3. Pruebas básicas del dataset ─────────────────────────────────
+        // ── 3. PRUEBAS ──────────────────────────────────────────────
         stage('Pruebas del dataset') {
             steps {
-                echo '==> Ejecutando pruebas con pytest...'
-                sh '''
-                    . .venv/bin/activate
-                    pytest tests/ -v --tb=short 2>&1 | tee outputs/test_results.log
-                '''
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'outputs/test_results.log',
-                                     allowEmptyArchive: true
-                }
+                echo '==> Validando integridad de los datos astronómicos...'
+                sh 'pytest tests/ -v > test_results.log'
             }
         }
 
-        // ── 4. Ejecución del pipeline principal ────────────────────────────
+        // ── 4. EJECUCIÓN ML ─────────────────────────────────────────
         stage('Ejecutar pipeline ML') {
             steps {
-                echo '==> Ejecutando main.py...'
-                sh '''
-                    mkdir -p outputs
-                    . .venv/bin/activate
-                    python main.py 2>&1 | tee outputs/pipeline.log
-                '''
+                echo '==> Iniciando entrenamiento y evaluación de modelos...'
+                // Ejecuta el orquestador principal que genera las gráficas y JSONs
+                sh 'python main.py'
             }
         }
 
-        // ── 5. Artefactos ──────────────────────────────────────────────────
+        // ── 5. ARTEFACTOS ───────────────────────────────────────────
         stage('Almacenar artefactos') {
             steps {
-                echo '==> Archivando métricas y gráficas...'
-                archiveArtifacts artifacts: 'outputs/**/*',
-                                 fingerprint: true,
-                                 allowEmptyArchive: false
+                echo '==> Archivando métricas y visualizaciones...'
+                // Guarda todos los archivos generados en la carpeta outputs
+                archiveArtifacts artifacts: "${OUTPUT_DIR}/*.*, *.log", allowEmptyArchive: true
             }
         }
     }
 
     post {
+        always {
+            echo '==> Limpiando espacio de trabajo...'
+            cleanWs()
+        }
         success {
-            echo '✓ Pipeline completado exitosamente.'
+            echo '✓ El pipeline finalizó exitosamente. Artefactos listos.'
         }
         failure {
-            echo '✗ El pipeline falló. Revisar outputs/pipeline.log'
-        }
-        always {
-            cleanWs(cleanWhenNotBuilt: false,
-                    deleteDirs: true,
-                    disableDeferredWipeout: true,
-                    notFailBuild: true,
-                    patterns: [[pattern: '.venv/**', type: 'INCLUDE']])
+            echo '✗ El pipeline falló. Revisar logs de la etapa afectada.'
         }
     }
 }
