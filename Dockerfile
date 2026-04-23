@@ -1,35 +1,23 @@
-# ── Base ──────────────────────────────────────────────────────────────────────
-FROM python:3.11-slim
+# 1. Cambiamos a 'bullseye' para evitar el error 403 de los repositorios Trixie
+FROM python:3.11-bullseye
 
-# Metadatos
-LABEL maintainer="Big Data IUE"
-LABEL description="SDSS ML Pipeline — Clasificación, Regresión y Clustering"
-
-# ── Variables de entorno ───────────────────────────────────────────────────────
-ENV DATA_PATH=/app/data/sdss_sample.csv
-ENV OUTPUT_DIR=/app/outputs
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# ── Directorio de trabajo ──────────────────────────────────────────────────────
+# 2. Definimos el directorio de trabajo
 WORKDIR /app
 
-# ── Dependencias del sistema ───────────────────────────────────────────────────
+# 3. Instalamos dependencias del sistema (usando espejos más estables)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Dependencias Python ────────────────────────────────────────────────────────
+# 4. Copiamos solo los requerimientos primero (para usar la caché de Docker)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# ── Código fuente ──────────────────────────────────────────────────────────────
-COPY src/ ./src/
-COPY tests/ ./tests/
-COPY main.py .
+# 5. Instalamos las librerías de Python para el M4
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# ── Carpeta de datos (se monta como volumen o se copia) ───────────────────────
-RUN mkdir -p /app/data /app/outputs
+# 6. Copiamos el resto de tu código de ML
+COPY . .
 
-# ── Punto de entrada ───────────────────────────────────────────────────────────
+# 7. Ejecutamos tu script principal
 CMD ["python", "main.py"]
