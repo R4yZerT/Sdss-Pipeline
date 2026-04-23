@@ -1,57 +1,31 @@
 pipeline {
-    agent any 
-
-    environment {
-        IMAGE_NAME = "sdss-ml-pipeline"
-        DATA_PATH  = "data/sdss_sample.csv"
-        OUTPUT_DIR = "outputs"
-    }
+    agent any
 
     stages {
+        stage('Limpiar Workspace') {
+            steps {
+                // Borra todo lo viejo para evitar el error Git 500/128
+                deleteDir() 
+            }
+        }
         stage('Checkout') {
             steps {
-                echo '==> Sincronizando código desde GitHub...'
-                checkout scm
+                // Descarga el código fresco
+                git branch: 'main', url: 'https://github.com/R4yZerT/Sdss-Pipeline.git'
             }
         }
-
-        stage('Preparar Contenedor') {
+        stage('Construir Docker') {
             steps {
-                echo '==> Construyendo la imagen de Docker...'
-                // Construimos la imagen usando el Dockerfile del repo
-                sh "docker build -t ${IMAGE_NAME} ."
+                // Construye la imagen con el nuevo Dockerfile
+                sh 'docker build -t sdss-ml-pipeline .'
             }
         }
-
         stage('Ejecutar Pipeline ML') {
             steps {
-                echo '==> Corriendo modelos dentro del contenedor...'
-                /* Ejecutamos el contenedor mapeando las carpetas locales.
-                   Esto generará los archivos en outputs/ */
-                sh """
-                    docker run --rm \
-                    -v \$(pwd)/data:/app/data \
-                    -v \$(pwd)/outputs:/app/outputs \
-                    ${IMAGE_NAME}
-                """
+                // Corre el contenedor SIN el parámetro -v. 
+                // Usará el sdss_sample.csv que el Dockerfile ya metió adentro.
+                sh 'docker run --rm sdss-ml-pipeline'
             }
-        }
-
-        stage('Almacenar Artefactos') {
-            steps {
-                echo '==> Archivando resultados para la entrega...'
-                // Guardamos las métricas y la matriz de confusión
-                archiveArtifacts artifacts: "${OUTPUT_DIR}/*.png, ${OUTPUT_DIR}/*.json", allowEmptyArchive: true
-            }
-        }
-    }
-
-    post {
-        success {
-            echo '✓ ¡Proyecto completado! Revisa la sección de Artefactos.'
-        }
-        failure {
-            echo '✗ Falló la ejecución. Revisa los logs de Docker.'
         }
     }
 }
