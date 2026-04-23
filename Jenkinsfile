@@ -1,13 +1,5 @@
 pipeline {
-    /* Utilizamos un agente de Docker para asegurar que el entorno 
-       tenga Python 3.11 instalado, independientemente de la configuración del host.
-    */
-    agent {
-        docker { 
-            image 'python:3.11-slim' 
-            args  '-u root' // Asegura permisos para crear carpetas y escribir logs
-        }
-    }
+    agent any 
 
     environment {
         IMAGE_NAME = "sdss-ml-pipeline"
@@ -16,63 +8,50 @@ pipeline {
     }
 
     stages {
-        // ── 1. CHECKOUT ─────────────────────────────────────────────
         stage('Checkout') {
             steps {
-                echo '==> Sincronizando código fuente...'
+                echo '==> Sincronizando código desde GitHub...'
                 checkout scm
             }
         }
 
-        // ── 2. INSTALACIÓN ──────────────────────────────────────────
-        stage('Instalar dependencias') {
+        stage('Preparar Contenedor') {
             steps {
-                echo '==> Instalando librerías de Ciencia de Datos...'
-                sh '''
-                    pip install --upgrade pip
-                    pip install -r requirements.txt
-                    pip install pytest
-                '''
+                echo '==> Construyendo la imagen de Docker...'
+                // Construimos la imagen usando el Dockerfile del repo
+                sh "docker build -t ${IMAGE_NAME} ."
             }
         }
 
-        // ── 3. PRUEBAS ──────────────────────────────────────────────
-        stage('Pruebas del dataset') {
+        stage('Ejecutar Pipeline ML') {
             steps {
-                echo '==> Validando integridad de los datos astronómicos...'
-                sh 'pytest tests/ -v > test_results.log'
+                echo '==> Corriendo modelos dentro del contenedor...'
+                /* Ejecutamos el contenedor mapeando las carpetas locales.
+                   Esto generará los archivos en outputs/ */
+                sh """
+                    docker run --rm \
+                    -v \$(pwd)/data:/app/data \
+                    -v \$(pwd)/outputs:/app/outputs \
+                    ${IMAGE_NAME}
+                """
             }
         }
 
-        // ── 4. EJECUCIÓN ML ─────────────────────────────────────────
-        stage('Ejecutar pipeline ML') {
+        stage('Almacenar Artefactos') {
             steps {
-                echo '==> Iniciando entrenamiento y evaluación de modelos...'
-                // Ejecuta el orquestador principal que genera las gráficas y JSONs
-                sh 'python main.py'
-            }
-        }
-
-        // ── 5. ARTEFACTOS ───────────────────────────────────────────
-        stage('Almacenar artefactos') {
-            steps {
-                echo '==> Archivando métricas y visualizaciones...'
-                // Guarda todos los archivos generados en la carpeta outputs
-                archiveArtifacts artifacts: "${OUTPUT_DIR}/*.*, *.log", allowEmptyArchive: true
+                echo '==> Archivando resultados para la entrega...'
+                // Guardamos las métricas y la matriz de confusión
+                archiveArtifacts artifacts: "${OUTPUT_DIR}/*.png, ${OUTPUT_DIR}/*.json", allowEmptyArchive: true
             }
         }
     }
 
     post {
-        always {
-            echo '==> Limpiando espacio de trabajo...'
-            cleanWs()
-        }
         success {
-            echo '✓ El pipeline finalizó exitosamente. Artefactos listos.'
+            echo '✓ ¡Proyecto completado! Revisa la sección de Artefactos.'
         }
         failure {
-            echo '✗ El pipeline falló. Revisar logs de la etapa afectada.'
+            echo '✗ Falló la ejecución. Revisa los logs de Docker.'
         }
     }
 }
