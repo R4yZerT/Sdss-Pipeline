@@ -1,19 +1,29 @@
 pipeline {
     agent any
-    
+
     stages {
-        stage('Construir Imagen de Entrenamiento') {
+        stage('Limpiar Workspace') {
             steps {
-                // El Dockerfile ya contiene las instrucciones para instalar Python y las librerías [cite: 1, 2, 3]
-                // Esto crea la imagen con el nombre 'sdss-ml-pipeline' 
+                // Borra todo lo viejo para evitar el error Git 500/128
+                deleteDir() 
+            }
+        }
+        stage('Checkout') {
+            steps {
+                // Descarga el código fresco
+                git branch: 'main', url: 'https://github.com/R4yZerT/Sdss-Pipeline.git'
+            }
+        }
+        stage('Construir Docker') {
+            steps {
+                // Construye la imagen con el nuevo Dockerfile
                 sh 'docker build -t sdss-ml-pipeline .'
             }
         }
-        
-        stage('Ejecutar Entrenamiento IA') {
+        stage('Ejecutar Pipeline ML') {
             steps {
-                // Ejecutamos el contenedor basado en la imagen creada.
-                // Como la imagen 'bullseye' ya es completa[cite: 2], el comando 'python main.py' funcionará aquí adentro.
+                // Corre el contenedor SIN el parámetro -v. 
+                // Usará el sdss_sample.csv que el Dockerfile ya metió adentro.
                 sh 'docker run --rm sdss-ml-pipeline'
             }
         }

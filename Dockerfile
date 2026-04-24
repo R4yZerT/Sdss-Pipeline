@@ -1,20 +1,18 @@
-# 1. Usamos la imagen completa (no la slim) que ya trae herramientas básicas
+# Usamos la imagen completa y estable, compatible con ARM64 (M4)
 FROM python:3.11-bullseye
 
+# Directorio de trabajo
 WORKDIR /app
 
-# 2. SALTÁNDONOS EL APT-GET (Aquí es donde fallaba)
-# No vamos a correr apt-get update porque tu red lo bloquea.
-# La imagen 'bullseye' estándar ya es bastante completa.
-
-# 3. Instalamos las librerías de Python directamente
+# Copiamos primero los requerimientos
 COPY requirements.txt .
 
-# Usamos un espejo de Pip por si la red sigue molestando
+# Instalamos todo sin caché para evitar basuras previas
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# 4. Copiamos el código
+# Copiamos TODOS los archivos del repo al contenedor (incluido data/sdss_sample.csv)
 COPY . .
 
+# Comando de ejecución
 CMD ["python", "main.py"]
