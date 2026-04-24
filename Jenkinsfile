@@ -1,30 +1,20 @@
 pipeline {
     agent any
-
+    
     stages {
-        stage('Limpiar Workspace') {
+        stage('Instalar Dependencias ML') {
             steps {
-                // Borra todo lo viejo para evitar el error Git 500/128
-                deleteDir() 
+                sh '''
+                    python3 -m pip install --upgrade pip
+                    if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+                '''
             }
         }
-        stage('Checkout') {
-            steps {
-                // Descarga el código fresco
-                git branch: 'main', url: 'https://github.com/R4yZerT/Sdss-Pipeline.git'
-            }
-        }
+        
         stage('Construir Docker') {
             steps {
-                // Construye la imagen con el nuevo Dockerfile
+                // Aquí ya no fallará el comando 'docker'
                 sh 'docker build -t sdss-ml-pipeline .'
-            }
-        }
-        stage('Ejecutar Pipeline ML') {
-            steps {
-                // Corre el contenedor SIN el parámetro -v. 
-                // Usará el sdss_sample.csv que el Dockerfile ya metió adentro.
-                sh 'docker run --rm sdss-ml-pipeline'
             }
         }
     }
