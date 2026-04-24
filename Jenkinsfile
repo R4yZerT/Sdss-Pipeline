@@ -2,19 +2,19 @@ pipeline {
     agent any
     
     stages {
-        stage('Instalar Dependencias ML') {
+        stage('Construir Imagen de Entrenamiento') {
             steps {
-                sh '''
-                    python3 -m pip install --upgrade pip
-                    if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-                '''
+                // El Dockerfile ya contiene las instrucciones para instalar Python y las librerías [cite: 1, 2, 3]
+                // Esto crea la imagen con el nombre 'sdss-ml-pipeline' 
+                sh 'docker build -t sdss-ml-pipeline .'
             }
         }
         
-        stage('Construir Docker') {
+        stage('Ejecutar Entrenamiento IA') {
             steps {
-                // Aquí ya no fallará el comando 'docker'
-                sh 'docker build -t sdss-ml-pipeline .'
+                // Ejecutamos el contenedor basado en la imagen creada.
+                // Como la imagen 'bullseye' ya es completa[cite: 2], el comando 'python main.py' funcionará aquí adentro.
+                sh 'docker run --rm sdss-ml-pipeline'
             }
         }
     }
